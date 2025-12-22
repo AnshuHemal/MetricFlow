@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     await db.update(pageViewTable).set({
       exitTime: body.exitTime,
       totalActiveTime: body.totalActiveTime,
+      exitUrl: body.exitUrl,
     }).where(eq(pageViewTable.visitorId, body?.visitorId)).returning();
   }
 

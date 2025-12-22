@@ -3,10 +3,21 @@
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
   }
 
+  const session_duration = 12 * 60 * 60 * 1000; // 12 hrs
+  const now = Date.now();
+
   let visitorId = localStorage.getItem("metricflow_visitor_id");
-  if (!visitorId) {
+  let sessionTime = localStorage.getItem("metricflow_session_time");
+
+  if (!visitorId || now - sessionTime > session_duration) {
+    if (visitorId) {
+      localStorage.removeItem("metricflow_visitor_id");
+      localStorage.removeItem("metricflow_session_time");
+    }
     visitorId = generateUUID();
     localStorage.setItem("metricflow_visitor_id", visitorId);
+    localStorage.setItem("metricflow_session_time", now);
+  } else {
   }
 
   const script = document.currentScript;
@@ -39,7 +50,7 @@
     utm_campaign,
     utm_term,
     utm_content,
-    refParams
+    refParams,
   };
 
   fetch("http://localhost:3000/api/track", {
@@ -71,10 +82,11 @@
         exitTime: exitTime,
         totalActiveTime: totalActiveTime,
         visitorId: visitorId,
+        exitUrl: window.location.href,
       }),
     });
 
-    localStorage.clear();
+    // localStorage.clear();
   };
 
   window?.addEventListener("beforeunload", handleExit);

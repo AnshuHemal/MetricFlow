@@ -16,7 +16,7 @@ export type AnalyticsType = {
   avgActiveTime: number;
   totalActiveTime: number;
   totalSessions: number;
-  last24hVisitors: number;
+  totalVisitors: number;
   hourlyVisitors: HourlyVisitorsType[];
 };
 

@@ -60,6 +60,8 @@ const WebsiteCard = ({ websiteInfo }: Props) => {
               margin={{
                 left: 12,
                 right: 12,
+                top: 8,
+                bottom: 8,
               }}
             >
               <CartesianGrid vertical={false} />
@@ -75,7 +77,7 @@ const WebsiteCard = ({ websiteInfo }: Props) => {
           </ChartContainer>
 
           <h2 className="text-sm mt-1">
-            <strong>{websiteInfo?.analytics?.last24hVisitors}</strong> Visitors
+            <strong>{websiteInfo?.analytics?.totalVisitors}</strong> Visitors
           </h2>
         </CardContent>
       </Card>
