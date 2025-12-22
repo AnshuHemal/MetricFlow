@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WebsiteType } from "@/configs/type";
+import { WebsiteInfoType, WebsiteType } from "@/configs/type";
 import { Globe } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import React from "react";
@@ -10,15 +10,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 
-const chartData = [
-  { month: "January", desktop: 186 },
-  { month: "February", desktop: 305 },
-  { month: "March", desktop: 237 },
-  { month: "April", desktop: 73 },
-  { month: "May", desktop: 209 },
-  { month: "June", desktop: 214 },
-];
-
 const chartConfig = {
   desktop: {
     label: "Desktop",
@@ -27,10 +18,27 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type Props = {
-  website: WebsiteType;
+  websiteInfo: WebsiteInfoType;
 };
 
-const WebsiteCard = ({ website }: Props) => {
+const WebsiteCard = ({ websiteInfo }: Props) => {
+  const hourlyData = websiteInfo?.analytics?.hourlyVisitors;
+  const chartData =
+    hourlyData?.length === 1
+      ? [
+          {
+            ...hourlyData[0],
+            hour:
+              Number(hourlyData[0].hour) - 1 >= 0
+                ? Number(hourlyData[0].hour) - 1
+                : 0,
+            count: 0,
+            hourLabel: `${Number(hourlyData[0].hour) - 1} AM / PM`,
+          },
+          hourlyData[0],
+        ]
+      : hourlyData;
+
   return (
     <div>
       <Card>
@@ -39,7 +47,7 @@ const WebsiteCard = ({ website }: Props) => {
             <div className="flex gap-2 items-center">
               <Globe className="h-8 w-8 p-2 rounded-md bg-primary text-white" />
               <h2 className="font-bold text-lg">
-                {website?.domain.replace("https://", "")}
+                {websiteInfo?.website?.domain.replace("https://", "")}
               </h2>
             </div>
           </CardTitle>
@@ -56,7 +64,7 @@ const WebsiteCard = ({ website }: Props) => {
             >
               <CartesianGrid vertical={false} />
               <Area
-                dataKey="desktop"
+                dataKey="count"
                 type="natural"
                 fill="var(--color-primary)"
                 fillOpacity={0.4}
@@ -67,7 +75,7 @@ const WebsiteCard = ({ website }: Props) => {
           </ChartContainer>
 
           <h2 className="text-sm mt-1">
-            <strong>24 Visitors</strong>{" "}
+            <strong>{websiteInfo?.analytics?.last24hVisitors}</strong> Visitors
           </h2>
         </CardContent>
       </Card>
