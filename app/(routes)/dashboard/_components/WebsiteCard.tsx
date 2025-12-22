@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import Link from "next/link";
 
 const chartConfig = {
   desktop: {
@@ -40,7 +41,7 @@ const WebsiteCard = ({ websiteInfo }: Props) => {
       : hourlyData;
 
   return (
-    <div>
+    <Link href={"/dashboard/website/" + websiteInfo?.website?.websiteId}>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -81,7 +82,7 @@ const WebsiteCard = ({ websiteInfo }: Props) => {
           </h2>
         </CardContent>
       </Card>
-    </div>
+    </Link>
   );
 };
 
