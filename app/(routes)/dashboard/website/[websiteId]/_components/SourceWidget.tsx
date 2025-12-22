@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AnalyticsType, IMAGE_URL_FOR_DOMAINS } from "@/configs/type";
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -17,7 +16,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import Image from "next/image";
 
 type Props = {
   websiteAnalytics: AnalyticsType | undefined;
@@ -40,17 +38,18 @@ const chartConfig = {
 
 const SourceWidget = ({ websiteAnalytics, loading }: Props) => {
   const BarLabelWithImage = (props: any) => {
-    const { x, y, width, height, ...payload } = props;
+    const { x, y, width, height, value } = props;
+
+    const imageUrl = IMAGE_URL_FOR_DOMAINS?.replace("<domain>", value);
 
     return (
       <g transform={`translate(${x + 8}, ${y + height / 2 - 8})`}>
-        {/* @ts-ignore */}
-        <image
-          src={IMAGE_URL_FOR_DOMAINS?.replace("<domain>", payload?.value)}
-          width={16}
-          height={16}
-        />
-        <text>{payload?.value}</text>
+        {/* SVG image */}
+        <image href={imageUrl} width={16} height={16} />
+        {/* SVG text */}
+        <text x={20} y={12} fontSize={12} fill="#ffffff">
+          {value}
+        </text>
       </g>
     );
   };
