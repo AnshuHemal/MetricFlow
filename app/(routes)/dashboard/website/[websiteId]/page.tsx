@@ -7,6 +7,7 @@ import FormInput from "./_components/FormInput";
 import PageViewAnalytics from "./_components/PageViewAnalytics";
 import { FakePrimitiveParam } from "drizzle-orm";
 import { format } from "date-fns-tz";
+import SourceWidget from "./_components/SourceWidget";
 
 const WebsiteDetail = () => {
   const { websiteId } = useParams();
@@ -54,6 +55,10 @@ const WebsiteDetail = () => {
         loading={loading}
         analyticType={formData?.analyticType}
       />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+        <SourceWidget websiteAnalytics={websiteInfo?.analytics} loading={loading} />
+      </div>
     </div>
   );
 };
