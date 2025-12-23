@@ -17,6 +17,7 @@ import {
 import { WebsiteType } from "@/configs/type";
 import { format } from "date-fns-tz";
 import { CalendarIcon, RefreshCcw, Settings } from "lucide-react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -146,9 +147,11 @@ const FormInput = ({ websiteList, setFormData, setReloadData }: Props) => {
           <RefreshCcw />
         </Button>
       </div>
-      <Button variant={"outline"}>
-        <Settings />
-      </Button>
+      <Link href={"/dashboard/website/"+websiteId+"/settings"}>
+        <Button variant={"outline"}>
+          <Settings />
+        </Button>
+      </Link>
     </div>
   );
 };
