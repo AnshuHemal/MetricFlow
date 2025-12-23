@@ -91,4 +91,19 @@
 
   window?.addEventListener("beforeunload", handleExit);
   // window.addEventListener("pagehide", handleExit);
+
+  const sendLivePing = () => {
+    fetch('http://localhost:3000/api/live', {
+      method: "POST",
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        visitorId,
+        websiteId,
+        last_seen: Date.now().toString(),
+        url: window.location.href
+      })
+    })
+  }
+
+  setInterval(sendLivePing, 10000)
 })();

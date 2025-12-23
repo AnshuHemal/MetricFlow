@@ -18,7 +18,7 @@ import { WebsiteType } from "@/configs/type";
 import { format } from "date-fns-tz";
 import { CalendarIcon, RefreshCcw, Settings } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 

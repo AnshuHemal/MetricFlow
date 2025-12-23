@@ -19,7 +19,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import axios from "axios";
 import { Globe, Loader, Loader2Icon, Plus, Search } from "lucide-react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
 

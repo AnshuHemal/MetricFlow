@@ -42,3 +42,19 @@ export const pageViewTable = pgTable("pageViews", {
   refParams: varchar(),
   exitUrl: varchar(),
 });
+
+export const liveUserTable = pgTable("liveUser", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  websiteId: varchar(),
+  visitorId: varchar().unique(),
+  last_seen: varchar(),
+  city: varchar(),
+  region: varchar(),
+  country: varchar(),
+  countryCode: varchar(),
+  lat: varchar(),
+  lng: varchar(),
+  device: varchar(),
+  os: varchar(),
+  browser: varchar(),
+});
