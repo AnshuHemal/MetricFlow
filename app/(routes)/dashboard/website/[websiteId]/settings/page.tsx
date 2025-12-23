@@ -34,7 +34,7 @@ import {
 const WebsiteSettings = () => {
   const { websiteId } = useParams();
   const [websiteDetail, setWebsiteDetail] = useState<WebsiteType>();
-  const [websiteDomain, setWebsiteDomain] = useState<string>();
+  const [websiteDomain, setWebsiteDomain] = useState<string>("");
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -50,7 +50,13 @@ const WebsiteSettings = () => {
     setWebsiteDomain(result?.data?.domain);
   };
 
-  const Script = `<script defer data-website-id='${websiteId}' data-domain='${websiteDetail?.domain}' src="${process.env.NEXT_PUBLIC_HOST_URL}/analytics.js"></script>`;
+  const Script = `
+  <script 
+    defer 
+    data-website-id='${websiteId}' 
+    data-domain='${websiteDetail?.domain}' 
+    src="${process.env.NEXT_PUBLIC_HOST_URL}/analytics.js">
+  </script>`;
 
   const onCopy = () => {
     navigator.clipboard.writeText(Script);
