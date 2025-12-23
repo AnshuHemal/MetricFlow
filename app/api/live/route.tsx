@@ -1,4 +1,3 @@
-import { db } from "@/configs/db";
 import { liveUserTable } from "@/configs/schema";
 import { and, eq, gt } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,6 +24,7 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: NextRequest) {
   try {
+    const { db } = await import("@/configs/db");
     const body = await req.json();
     const { visitorId, websiteId, last_seen, url } = body;
 
@@ -82,10 +82,6 @@ export async function POST(req: NextRequest) {
       { headers: CORS_HEADERS }
     );
   } catch (err: any) {
-    console.error(err);
-    {
-      headers: CORS_HEADERS;
-    }
     return NextResponse.json(
       { status: "error", message: err.message },
       { headers: CORS_HEADERS }
@@ -94,6 +90,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const { db } = await import("@/configs/db");
   const websiteId = req.nextUrl.searchParams.get("websiteId");
   const now = Date.now();
   const activeUsers = await db

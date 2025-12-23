@@ -1,4 +1,3 @@
-import { db } from "@/configs/db";
 import { pageViewTable } from "@/configs/schema";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
@@ -23,20 +22,38 @@ export async function OPTIONS(req: Request) {
   });
 }
 
+function getClientIP(req: Request) {
+  // 1️⃣ Vercel-specific header (MOST IMPORTANT)
+  const vercelIP = req.headers.get("x-vercel-forwarded-for");
+  if (vercelIP) return vercelIP.split(",")[0].trim();
+
+  // 2️⃣ Standard proxy header
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+
+  // 3️⃣ Fallback
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp;
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
+  const { db } = await import("@/configs/db");
   const body = await req.json();
 
   const parser = new UAParser(req.headers.get("user-agent") || "");
   const deviceInfo = parser.getDevice()?.model;
   const osInfo = parser.getOS()?.name;
   const browserInfo = parser.getBrowser()?.name;
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0] ||
-    req.headers.get("x-real-ip") ||
-    "71.71.22.54";
 
-  const geoRes = await fetch(`https://ip-api.com/json/${ip}/`);
-  const geoInfo = await geoRes.json();
+  const ip = getClientIP(req) || "71.71.22.54";
+  let geoInfo = null;
+
+  if (ip && !ip.startsWith("10.") && !ip.startsWith("192.168")) {
+    const geoRes = await fetch(`http://ip-api.com/json/${ip}`);
+    geoInfo = await geoRes.json();
+  }
 
   let result;
   if (body?.type === "entry") {

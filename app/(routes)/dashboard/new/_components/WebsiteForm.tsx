@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import axios from "axios";
-import { Globe, Loader, Loader2Icon, Plus, Search } from "lucide-react";
+import { Globe, Loader2Icon, Plus, Clock, Shield, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 
 const WebsiteForm = () => {
@@ -28,8 +28,13 @@ const WebsiteForm = () => {
   const [timezone, setTimezone] = useState("");
   const [enableLocalhostTracking, setEnableLocalhostTracking] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   const onFormSubmit = async (e: any) => {
     e.preventDefault();
@@ -62,146 +67,146 @@ const WebsiteForm = () => {
     }
     setLoading(false);
   };
+
   return (
-    <div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Add a new website</CardTitle>
+    <div className={`transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}>
+      <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-500 bg-white/80 backdrop-blur-sm overflow-hidden group">
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 group-hover:to-purple-500/5 transition-all duration-300"></div>
+        
+        <CardHeader className="relative z-10 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 shadow-lg transition-all duration-500">
+              <Globe className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                Website Information
+              </CardTitle>
+              <p className="text-gray-600 mt-1 group-hover:text-gray-700 transition-colors duration-200">
+                Configure your website tracking settings
+              </p>
+            </div>
+          </div>
         </CardHeader>
-        <Separator />
 
-        <CardContent>
-          <form className="mt-5" onSubmit={(e) => onFormSubmit(e)}>
-            <label className="text-sm ">Domain</label>
-            <InputGroup>
-              <InputGroupInput
-                type="text"
-                onChange={(e) => setDomain("https://" + e.target.value)}
-                placeholder="mywebsite.com"
-                required
-              />
-              <InputGroupAddon>
-                <Globe />
-                <span>https://</span>
-              </InputGroupAddon>
-            </InputGroup>
+        <Separator className="opacity-20" />
 
-            <div className="mt-4">
-              <label className="text-sm">Timezone</label>
-              <Select required onValueChange={(value) => setTimezone(value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>North America</SelectLabel>
-                    <SelectItem value="est">
-                      Eastern Standard Time (EST)
-                    </SelectItem>
-                    <SelectItem value="cst">
-                      Central Standard Time (CST)
-                    </SelectItem>
-                    <SelectItem value="mst">
-                      Mountain Standard Time (MST)
-                    </SelectItem>
-                    <SelectItem value="pst">
-                      Pacific Standard Time (PST)
-                    </SelectItem>
-                    <SelectItem value="akst">
-                      Alaska Standard Time (AKST)
-                    </SelectItem>
-                    <SelectItem value="hst">
-                      Hawaii Standard Time (HST)
-                    </SelectItem>
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Europe & Africa</SelectLabel>
-                    <SelectItem value="gmt">
-                      Greenwich Mean Time (GMT)
-                    </SelectItem>
-                    <SelectItem value="cet">
-                      Central European Time (CET)
-                    </SelectItem>
-                    <SelectItem value="eet">
-                      Eastern European Time (EET)
-                    </SelectItem>
-                    <SelectItem value="west">
-                      Western European Summer Time (WEST)
-                    </SelectItem>
-                    <SelectItem value="cat">
-                      Central Africa Time (CAT)
-                    </SelectItem>
-                    <SelectItem value="eat">East Africa Time (EAT)</SelectItem>
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Asia</SelectLabel>
-                    <SelectItem value="msk">Moscow Time (MSK)</SelectItem>
-                    <SelectItem value="ist">
-                      India Standard Time (IST)
-                    </SelectItem>
-                    <SelectItem value="cst_china">
-                      China Standard Time (CST)
-                    </SelectItem>
-                    <SelectItem value="jst">
-                      Japan Standard Time (JST)
-                    </SelectItem>
-                    <SelectItem value="kst">
-                      Korea Standard Time (KST)
-                    </SelectItem>
-                    <SelectItem value="ist_indonesia">
-                      Indonesia Central Standard Time (WITA)
-                    </SelectItem>
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Australia & Pacific</SelectLabel>
-                    <SelectItem value="awst">
-                      Australian Western Standard Time (AWST)
-                    </SelectItem>
-                    <SelectItem value="acst">
-                      Australian Central Standard Time (ACST)
-                    </SelectItem>
-                    <SelectItem value="aest">
-                      Australian Eastern Standard Time (AEST)
-                    </SelectItem>
-                    <SelectItem value="nzst">
-                      New Zealand Standard Time (NZST)
-                    </SelectItem>
-                    <SelectItem value="fjt">Fiji Time (FJT)</SelectItem>
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>South America</SelectLabel>
-                    <SelectItem value="art">Argentina Time (ART)</SelectItem>
-                    <SelectItem value="bot">Bolivia Time (BOT)</SelectItem>
-                    <SelectItem value="brt">Brasilia Time (BRT)</SelectItem>
-                    <SelectItem value="clt">
-                      Chile Standard Time (CLT)
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+        <CardContent className="relative z-10 pt-6">
+          <form className="space-y-6" onSubmit={(e) => onFormSubmit(e)}>
+            {/* Two Column Layout for Desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Domain Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                  <Globe className="h-4 w-4 text-blue-500" />
+                  <span>Website Domain</span>
+                </label>
+                <InputGroup className="group">
+                  <InputGroupInput
+                    type="text"
+                    onChange={(e) => setDomain("https://" + e.target.value)}
+                    placeholder="mywebsite.com"
+                    required
+                    className="transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent group-hover:border-blue-300"
+                  />
+                  <InputGroupAddon className="bg-blue-50 border-blue-200 text-blue-600 group-hover:bg-blue-100 transition-colors duration-200 pe-2">
+                    <Globe className="h-4 w-4" />
+                    <span className="font-medium">https://</span>
+                  </InputGroupAddon>
+                </InputGroup>
+                <p className="text-xs text-gray-500">
+                  Enter your website domain without the protocol
+                </p>
+              </div>
+
+              {/* Timezone Select */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                  <Clock className="h-4 w-4 text-green-700" />
+                  <span>Timezone</span>
+                </label>
+                <Select required onValueChange={(value) => setTimezone(value)}>
+                  <SelectTrigger className="w-full transition-all duration-300 hover:border-blue-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <SelectValue placeholder="Select your timezone" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-48">
+                    <SelectGroup>
+                      <SelectLabel className="text-blue-600 font-medium">North America</SelectLabel>
+                      <SelectItem value="est">Eastern (EST)</SelectItem>
+                      <SelectItem value="cst">Central (CST)</SelectItem>
+                      <SelectItem value="mst">Mountain (MST)</SelectItem>
+                      <SelectItem value="pst">Pacific (PST)</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-green-800 font-medium">Europe</SelectLabel>
+                      <SelectItem value="gmt">Greenwich (GMT)</SelectItem>
+                      <SelectItem value="cet">Central European (CET)</SelectItem>
+                      <SelectItem value="eet">Eastern European (EET)</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="text-purple-600 font-medium">Asia</SelectLabel>
+                      <SelectItem value="ist">India (IST)</SelectItem>
+                      <SelectItem value="jst">Japan (JST)</SelectItem>
+                      <SelectItem value="cst_china">China (CST)</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  Choose your local timezone for accurate reporting
+                </p>
+              </div>
             </div>
 
-            <div className="mt-4 flex gap-2 items-center">
-              <Checkbox
-                onCheckedChange={(value: boolean) =>
-                  setEnableLocalhostTracking(value)
-                }
-              />{" "}
-              <span>Enable Localhost Tracking for Development</span>
+            {/* Development Options */}
+            <div className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50/50 transition-colors duration-300">
+              <div className="flex items-center space-x-2 mb-3">
+                <Shield className="h-4 w-4 text-purple-500" />
+                <span className="text-sm font-medium text-gray-700">Development Options</span>
+              </div>
+              <div className="flex items-start space-x-3">
+                <Checkbox
+                  id="localhost"
+                  onCheckedChange={(value: boolean) => setEnableLocalhostTracking(value)}
+                  className="mt-1"
+                />
+                <div className="space-y-1">
+                  <label htmlFor="localhost" className="text-sm font-medium text-gray-700 cursor-pointer hover:text-blue-600 transition-colors duration-200">
+                    Enable Localhost Tracking
+                  </label>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Allow tracking on localhost and development environments for testing.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <Button className="mt-5 w-full" disabled={loading} type="submit">
+            {/* Submit Button */}
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700 hover:scale-101 transition-all duration-300 hover:shadow-lg cursor-pointer group py-3 text-base font-medium" 
+              disabled={loading} 
+              type="submit"
+            >
               {loading ? (
-                <Loader2Icon className="animate-spin" />
+                <div className="flex items-center space-x-2">
+                  <Loader2Icon className="animate-spin h-5 w-5" />
+                  <span>Creating Website...</span>
+                </div>
               ) : (
-                <>
-                  <Plus />
-                  Add Website{" "}
-                </>
+                <div className="flex items-center space-x-2">
+                  <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" />
+                  <span>Add Website</span>
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-200" />
+                </div>
               )}
             </Button>
           </form>
         </CardContent>
+
+        {/* Floating particles */}
+        <div className="absolute top-6 right-6 w-2 h-2 bg-blue-200 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        <div className="absolute bottom-8 left-8 w-1.5 h-1.5 bg-purple-300 rounded-full animate-bounce opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ animationDelay: '0.5s' }}></div>
+        <div className="absolute top-1/2 right-12 w-1 h-1 bg-green-700 rounded-full animate-pulse opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ animationDelay: '1s' }}></div>
       </Card>
     </div>
   );

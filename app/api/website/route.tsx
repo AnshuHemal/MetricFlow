@@ -1,11 +1,11 @@
-import { db } from "@/configs/db";
-import { pageViewTable, websitesTable } from "@/configs/schema";
+import { pageViewTable, websitesTable, liveUserTable } from "@/configs/schema";
 import { currentUser } from "@clerk/nextjs/server";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { toZonedTime } from "date-fns-tz";
 
 export async function POST(req: NextRequest) {
+  const { db } = await import("@/configs/db");
   const { websiteId, domain, timezone, enableLocalhostTracking } =
     await req.json();
 
@@ -46,19 +46,88 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { websiteId } = await req.json();
-  const user = await currentUser();
+  try {
+    const { db } = await import("@/configs/db");
+    const { websiteId } = await req.json();
+    const user = await currentUser();
 
-  const result = await db
-    .delete(websitesTable)
-    .where(
-      and(
-        eq(websitesTable.websiteId, websiteId),
-        // @ts-ignore
-        eq(websitesTable.userEmail, user?.primaryEmailAddress?.emailAddress)
-      )
+    // Security check: Ensure user is authenticated
+    if (!user || !user.primaryEmailAddress?.emailAddress) {
+      return NextResponse.json(
+        { error: "Unauthorized access" }, 
+        { status: 401 }
+      );
+    }
+
+    // Validate websiteId
+    if (!websiteId || typeof websiteId !== 'string') {
+      return NextResponse.json(
+        { error: "Invalid website ID provided" }, 
+        { status: 400 }
+      );
+    }
+
+    // Verify website ownership before deletion
+    const websiteToDelete = await db
+      .select()
+      .from(websitesTable)
+      .where(
+        and(
+          eq(websitesTable.websiteId, websiteId),
+          eq(websitesTable.userEmail, user.primaryEmailAddress.emailAddress)
+        )
+      );
+
+    if (websiteToDelete.length === 0) {
+      return NextResponse.json(
+        { error: "Website not found or access denied" }, 
+        { status: 404 }
+      );
+    }
+
+    // Begin transaction-like cleanup (delete in proper order to avoid foreign key issues)
+    
+    // 1. Delete all live user sessions for this website
+    await db
+      .delete(liveUserTable)
+      .where(eq(liveUserTable.websiteId, websiteId));
+
+    // 2. Delete all page view analytics data for this website
+    await db
+      .delete(pageViewTable)
+      .where(eq(pageViewTable.websiteId, websiteId));
+
+    // 3. Finally, delete the website record itself
+    await db
+      .delete(websitesTable)
+      .where(
+        and(
+          eq(websitesTable.websiteId, websiteId),
+          eq(websitesTable.userEmail, user.primaryEmailAddress.emailAddress)
+        )
+      );
+
+    return NextResponse.json({ 
+      success: true,
+      message: "Website and all associated data permanently deleted",
+      details: {
+        websiteId,
+        domain: websiteToDelete[0].domain,
+        deletedAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Website deletion error:', error);
+    
+    return NextResponse.json(
+      { 
+        error: "Failed to delete website", 
+        message: "An internal server error occurred during deletion" 
+      }, 
+      { status: 500 }
     );
-  return NextResponse.json({ message: "Website Deleted !!" });
+  }
 }
 
 /* ---------------------------------------------
@@ -87,319 +156,364 @@ const formatDateInTZ = (date: Date, timeZone: string) =>
   }).format(date);
 
 export async function GET(req: NextRequest) {
-  const user = await currentUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const websiteId = req.nextUrl.searchParams.get("websiteId");
-  const from = req.nextUrl.searchParams.get("from");
-  const to = req.nextUrl.searchParams.get("to");
-  const websiteOnly = req.nextUrl.searchParams.get("websiteOnly");
-
-  const fromUnix = from
-    ? Math.floor(new Date(`${from}T00:00:00`).getTime() / 1000)
-    : null;
-
-  const toUnix = to
-    ? Math.floor(new Date(`${to}T23:59:59`).getTime() / 1000)
-    : null;
-
-  /* ---------------------------------------------
-       WEBSITE ONLY
-    --------------------------------------------- */
-  if (websiteOnly === "true") {
-    if (websiteId) {
-      const websites = await db
-        .select()
-        .from(websitesTable)
-        .where(
-          and(
-            eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress),
-            eq(websitesTable.websiteId, websiteId)
-          )
-        );
-
-      return NextResponse.json(websites[0]);
+  try {
+    const { db } = await import("@/configs/db");
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const websites = await db
-      .select()
-      .from(websitesTable)
-      .where(
-        eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress)
-      );
+    if (!user.primaryEmailAddress?.emailAddress) {
+      return NextResponse.json({ error: "User email not available" }, { status: 400 });
+    }
 
-    return NextResponse.json(websites);
-  }
+    const websiteId = req.nextUrl.searchParams.get("websiteId");
+    const from = req.nextUrl.searchParams.get("from");
+    const to = req.nextUrl.searchParams.get("to");
+    const websiteOnly = req.nextUrl.searchParams.get("websiteOnly");
+
+    const fromUnix = from
+      ? Math.floor(new Date(`${from}T00:00:00`).getTime() / 1000)
+      : null;
+
+    const toUnix = to
+      ? Math.floor(new Date(`${to}T23:59:59`).getTime() / 1000)
+      : null;
+
+    /* ---------------------------------------------
+         WEBSITE ONLY
+      --------------------------------------------- */
+    if (websiteOnly === "true") {
+      try {
+        if (websiteId) {
+          const websites = await db
+            .select()
+            .from(websitesTable)
+            .where(
+              and(
+                eq(websitesTable.userEmail, user.primaryEmailAddress.emailAddress),
+                eq(websitesTable.websiteId, websiteId)
+              )
+            );
+
+          return NextResponse.json(websites[0] || null);
+        }
+
+        const websites = await db
+          .select()
+          .from(websitesTable)
+          .where(
+            eq(websitesTable.userEmail, user.primaryEmailAddress.emailAddress)
+          );
+
+        return NextResponse.json(websites);
+      } catch (dbError) {
+        console.error('Database error in websiteOnly section:', dbError);
+        return NextResponse.json({ 
+          error: "Database error", 
+          message: "Failed to fetch websites",
+          details: process.env.NODE_ENV === 'development' ? String(dbError) : undefined
+        }, { status: 500 });
+      }
+    }
 
   /* ---------------------------------------------
        FETCH WEBSITES
     --------------------------------------------- */
-  const websites = await db
-    .select()
-    .from(websitesTable)
-    .where(
-      websiteId
-        ? and(
-            eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress),
-            eq(websitesTable.websiteId, websiteId)
-          )
-        : eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress)
-    )
-    .orderBy(sql`${websitesTable.id} DESC`);
-
-  const result: any[] = [];
-
-  /* ---------------------------------------------
-       FORMATTERS (UNCHANGED)
-    --------------------------------------------- */
-  const formatSimple = (map: Record<string, number>) =>
-    Object.entries(map).map(([name, uv]) => ({ name, uv }));
-
-  const formatWithImage = (map: Record<string, number>) =>
-    Object.entries(map).map(([name, uv]) => ({
-      name,
-      uv,
-      image: `/${name.toLowerCase()}.png`,
-    }));
-
-  const formatCountries = (
-    map: Record<string, number>,
-    codeMap: Record<string, string>
-  ) =>
-    Object.entries(map).map(([name, uv]) => ({
-      name,
-      uv,
-      image: codeMap[name]
-        ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
-        : "/country.png",
-    }));
-
-  const formatCities = (
-    map: Record<string, number>,
-    codeMap: Record<string, string>
-  ) =>
-    Object.entries(map).map(([name, uv]) => ({
-      name,
-      uv,
-      image: codeMap[name]
-        ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
-        : "/city.png",
-    }));
-
-  const formatRegions = (
-    map: Record<string, number>,
-    codeMap: Record<string, string>
-  ) =>
-    Object.entries(map).map(([name, uv]) => ({
-      name,
-      uv,
-      image: codeMap[name]
-        ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
-        : "/region.png",
-    }));
-
-  const getDomainName = (value: string) => {
-    try {
-      const host = new URL(
-        value.startsWith("http") ? value : `https://${value}`
-      ).hostname;
-      return host.replace("www.", "").split(".")[0];
-    } catch {
-      return value.split(".")[0];
-    }
-  };
-
-  const formatReferrals = (map: Record<string, number>) =>
-    Object.entries(map).map(([name, uv]) => ({
-      name,
-      uv,
-      domainName: getDomainName(name),
-    }));
-
-  /* ---------------------------------------------
-       LOOP WEBSITES
-    --------------------------------------------- */
-  for (const site of websites) {
-    const siteTZ = getSafeTimeZone(site.timezone);
-
-    const views = await db
+  try {
+    const websites = await db
       .select()
-      .from(pageViewTable)
+      .from(websitesTable)
       .where(
-        and(
-          eq(pageViewTable.websiteId, site.websiteId),
-          ...(fromUnix && toUnix
-            ? [
-                gte(sql`${pageViewTable.entryTime}::bigint`, fromUnix),
-                lte(sql`${pageViewTable.entryTime}::bigint`, toUnix),
-              ]
-            : [])
-        )
-      );
+        websiteId
+          ? and(
+              eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress),
+              eq(websitesTable.websiteId, websiteId)
+            )
+          : eq(websitesTable.userEmail, user.primaryEmailAddress!.emailAddress)
+      )
+      .orderBy(sql`${websitesTable.id} DESC`);
 
-    /* ---------- UNIQUE VISITORS ---------- */
-    const makeSetMap = () => ({} as Record<string, Set<string>>);
+    const result: any[] = [];
 
-    const countryVisitors = makeSetMap();
-    const cityVisitors = makeSetMap();
-    const regionVisitors = makeSetMap();
-    const deviceVisitors = makeSetMap();
-    const osVisitors = makeSetMap();
-    const browserVisitors = makeSetMap();
-    const referralVisitors = makeSetMap();
-    const refParamsVisitors = makeSetMap();
-    const utmSourceVisitors = makeSetMap();
-    const urlVisitors = makeSetMap();
+    /* ---------------------------------------------
+         FORMATTERS (UNCHANGED)
+      --------------------------------------------- */
+    const formatSimple = (map: Record<string, number>) =>
+      Object.entries(map).map(([name, uv]) => ({ name, uv }));
 
-    const countryCodeMap: Record<string, string> = {};
-    const cityCountryMap: Record<string, string> = {};
-    const regionCountryMap: Record<string, string> = {};
+    const formatWithImage = (map: Record<string, number>) =>
+      Object.entries(map).map(([name, uv]) => ({
+        name,
+        uv,
+        image: `/${name.toLowerCase()}.png`,
+      }));
 
-    const uniqueVisitors = new Set<string>();
-    let totalActiveTime = 0;
+    const formatCountries = (
+      map: Record<string, number>,
+      codeMap: Record<string, string>
+    ) =>
+      Object.entries(map).map(([name, uv]) => ({
+        name,
+        uv,
+        image: codeMap[name]
+          ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
+          : "/country.png",
+      }));
 
-    views.forEach((v) => {
-      if (!v.visitorId) return;
-      uniqueVisitors.add(v.visitorId);
+    const formatCities = (
+      map: Record<string, number>,
+      codeMap: Record<string, string>
+    ) =>
+      Object.entries(map).map(([name, uv]) => ({
+        name,
+        uv,
+        image: codeMap[name]
+          ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
+          : "/city.png",
+      }));
 
-      if (v.totalActiveTime && v.totalActiveTime > 0) {
-        totalActiveTime += v.totalActiveTime;
+    const formatRegions = (
+      map: Record<string, number>,
+      codeMap: Record<string, string>
+    ) =>
+      Object.entries(map).map(([name, uv]) => ({
+        name,
+        uv,
+        image: codeMap[name]
+          ? `https://flagsapi.com/${codeMap[name]}/flat/64.png`
+          : "/region.png",
+      }));
+
+    const getDomainName = (value: string) => {
+      try {
+        const host = new URL(
+          value.startsWith("http") ? value : `https://${value}`
+        ).hostname;
+        return host.replace("www.", "").split(".")[0];
+      } catch {
+        return value.split(".")[0];
       }
+    };
 
-      const add = (map: Record<string, Set<string>>, key: string) => {
-        map[key] ??= new Set();
-        map[key].add(v.visitorId!);
-      };
+    const formatReferrals = (map: Record<string, number>) =>
+      Object.entries(map).map(([name, uv]) => ({
+        name,
+        uv,
+        domainName: getDomainName(name),
+      }));
 
-      if (v.country) {
-        add(countryVisitors, v.country);
-        if (v.countryCode)
-          countryCodeMap[v.country] = v.countryCode.toUpperCase();
-      }
-      if (v.city) {
-        add(cityVisitors, v.city);
-        if (v.countryCode) cityCountryMap[v.city] = v.countryCode.toUpperCase();
-      }
-      if (v.region) {
-        add(regionVisitors, v.region);
-        if (v.countryCode)
-          regionCountryMap[v.region] = v.countryCode.toUpperCase();
-      }
+    /* ---------------------------------------------
+         LOOP WEBSITES
+      --------------------------------------------- */
+    for (const site of websites) {
+      try {
+        const siteTZ = getSafeTimeZone(site.timezone);
 
-      if (v.device) add(deviceVisitors, v.device);
-      if (v.os) add(osVisitors, v.os);
-      if (v.browser) add(browserVisitors, v.browser);
-      if (v.referrer) add(referralVisitors, v.referrer);
-      if (v.refParams) add(refParamsVisitors, v.refParams);
-      if (v.utm_source) add(utmSourceVisitors, v.utm_source);
-      if (v.url) add(urlVisitors, v.url);
-    });
+        const views = await db
+          .select()
+          .from(pageViewTable)
+          .where(
+            and(
+              eq(pageViewTable.websiteId, site.websiteId),
+              ...(fromUnix && toUnix
+                ? [
+                    gte(sql`${pageViewTable.entryTime}::bigint`, fromUnix),
+                    lte(sql`${pageViewTable.entryTime}::bigint`, toUnix),
+                  ]
+                : [])
+            )
+          );
 
-    const toCountMap = (map: Record<string, Set<string>>) =>
-      Object.fromEntries(Object.entries(map).map(([k, v]) => [k, v.size]));
+        /* ---------- UNIQUE VISITORS ---------- */
+        const makeSetMap = () => ({} as Record<string, Set<string>>);
 
-    const totalVisitors = uniqueVisitors.size;
-    const totalSessions = views.length;
-    const avgActiveTime =
-      totalVisitors > 0 ? Math.round(totalActiveTime / totalVisitors) : 0;
+        const countryVisitors = makeSetMap();
+        const cityVisitors = makeSetMap();
+        const regionVisitors = makeSetMap();
+        const deviceVisitors = makeSetMap();
+        const osVisitors = makeSetMap();
+        const browserVisitors = makeSetMap();
+        const referralVisitors = makeSetMap();
+        const refParamsVisitors = makeSetMap();
+        const utmSourceVisitors = makeSetMap();
+        const urlVisitors = makeSetMap();
 
-    /* ---------- HOURLY VISITORS ---------- */
-    const hourlyMap: Record<string, Set<string>> = {};
-    const hourlyVisitors: any[] = [];
+        const countryCodeMap: Record<string, string> = {};
+        const cityCountryMap: Record<string, string> = {};
+        const regionCountryMap: Record<string, string> = {};
 
-    if (views.length > 0) {
-      const start = fromUnix
-        ? new Date(fromUnix * 1000)
-        : new Date(Math.min(...views.map((v) => Number(v.entryTime) * 1000)));
+        const uniqueVisitors = new Set<string>();
+        let totalActiveTime = 0;
 
-      const end = toUnix
-        ? new Date(toUnix * 1000)
-        : new Date(Math.max(...views.map((v) => Number(v.entryTime) * 1000)));
+        views.forEach((v) => {
+          if (!v.visitorId) return;
+          uniqueVisitors.add(v.visitorId);
 
-      let cursor = new Date(start);
+          if (v.totalActiveTime && v.totalActiveTime > 0) {
+            totalActiveTime += v.totalActiveTime;
+          }
 
-      while (cursor <= end) {
-        const local = toZonedTime(cursor, siteTZ);
-        const date = formatDateInTZ(local, siteTZ);
-        const hour = local.getHours();
-        const key = `${date}-${hour}`;
+          const add = (map: Record<string, Set<string>>, key: string) => {
+            map[key] ??= new Set();
+            map[key].add(v.visitorId!);
+          };
 
-        hourlyVisitors.push({
-          date,
-          hour,
-          hourLabel: local.toLocaleString("en-US", {
-            hour: "numeric",
-            hour12: true,
-            timeZone: siteTZ,
-          }),
-          count: 0,
+          if (v.country) {
+            add(countryVisitors, v.country);
+            if (v.countryCode)
+              countryCodeMap[v.country] = v.countryCode.toUpperCase();
+          }
+          if (v.city) {
+            add(cityVisitors, v.city);
+            if (v.countryCode) cityCountryMap[v.city] = v.countryCode.toUpperCase();
+          }
+          if (v.region) {
+            add(regionVisitors, v.region);
+            if (v.countryCode)
+              regionCountryMap[v.region] = v.countryCode.toUpperCase();
+          }
+
+          if (v.device) add(deviceVisitors, v.device);
+          if (v.os) add(osVisitors, v.os);
+          if (v.browser) add(browserVisitors, v.browser);
+          if (v.referrer) add(referralVisitors, v.referrer);
+          if (v.refParams) add(refParamsVisitors, v.refParams);
+          if (v.utm_source) add(utmSourceVisitors, v.utm_source);
+          if (v.url) add(urlVisitors, v.url);
         });
 
-        hourlyMap[key] = new Set();
-        cursor.setHours(cursor.getHours() + 1);
+        const toCountMap = (map: Record<string, Set<string>>) =>
+          Object.fromEntries(Object.entries(map).map(([k, v]) => [k, v.size]));
+
+        const totalVisitors = uniqueVisitors.size;
+        const totalSessions = views.length;
+        const avgActiveTime =
+          totalVisitors > 0 ? Math.round(totalActiveTime / totalVisitors) : 0;
+
+        /* ---------- HOURLY VISITORS ---------- */
+        const hourlyMap: Record<string, Set<string>> = {};
+        const hourlyVisitors: any[] = [];
+
+        if (views.length > 0) {
+          const start = fromUnix
+            ? new Date(fromUnix * 1000)
+            : new Date(Math.min(...views.map((v) => Number(v.entryTime) * 1000)));
+
+          const end = toUnix
+            ? new Date(toUnix * 1000)
+            : new Date(Math.max(...views.map((v) => Number(v.entryTime) * 1000)));
+
+          let cursor = new Date(start);
+
+          while (cursor <= end) {
+            const local = toZonedTime(cursor, siteTZ);
+            const date = formatDateInTZ(local, siteTZ);
+            const hour = local.getHours();
+            const key = `${date}-${hour}`;
+
+            hourlyVisitors.push({
+              date,
+              hour,
+              hourLabel: local.toLocaleString("en-US", {
+                hour: "numeric",
+                hour12: true,
+                timeZone: siteTZ,
+              }),
+              count: 0,
+            });
+
+            hourlyMap[key] = new Set();
+            cursor.setHours(cursor.getHours() + 1);
+          }
+
+          views.forEach((v) => {
+            if (!v.entryTime || !v.visitorId) return;
+
+            const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
+
+            const date = formatDateInTZ(local, siteTZ);
+            hourlyMap[`${date}-${local.getHours()}`]?.add(v.visitorId);
+          });
+
+          hourlyVisitors.forEach((h) => {
+            h.count = hourlyMap[`${h.date}-${h.hour}`]?.size || 0;
+          });
+        }
+
+        /* ---------- DAILY VISITORS ---------- */
+        const dailyMap: Record<string, Set<string>> = {};
+
+        views.forEach((v) => {
+          if (!v.entryTime || !v.visitorId) return;
+
+          const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
+
+          const date = formatDateInTZ(local, siteTZ);
+
+          dailyMap[date] ??= new Set();
+          dailyMap[date].add(v.visitorId);
+        });
+
+        const dailyVisitors = Object.entries(dailyMap).map(([date, set]) => ({
+          date,
+          count: set.size,
+        }));
+
+        /* ---------- FINAL RESPONSE ---------- */
+        result.push({
+          website: site,
+          analytics: {
+            totalVisitors,
+            totalSessions,
+            totalActiveTime,
+            avgActiveTime,
+            hourlyVisitors,
+            dailyVisitors,
+
+            countries: formatCountries(toCountMap(countryVisitors), countryCodeMap),
+            cities: formatCities(toCountMap(cityVisitors), cityCountryMap),
+            regions: formatRegions(toCountMap(regionVisitors), regionCountryMap),
+
+            devices: formatWithImage(toCountMap(deviceVisitors)),
+            os: formatWithImage(toCountMap(osVisitors)),
+            browsers: formatWithImage(toCountMap(browserVisitors)),
+
+            referrals: formatReferrals(toCountMap(referralVisitors)),
+            refParams: formatSimple(toCountMap(refParamsVisitors)),
+            utmSources: formatSimple(toCountMap(utmSourceVisitors)),
+            urls: formatSimple(toCountMap(urlVisitors)),
+          },
+        });
+      } catch (siteError) {
+        console.error(`Error processing analytics for website ${site.websiteId}:`, siteError);
+        // Continue processing other websites, but add error info for this site
+        result.push({
+          website: site,
+          analytics: null,
+          error: "Failed to process analytics for this website"
+        });
       }
-
-      views.forEach((v) => {
-        if (!v.entryTime || !v.visitorId) return;
-
-        const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
-
-        const date = formatDateInTZ(local, siteTZ);
-        hourlyMap[`${date}-${local.getHours()}`]?.add(v.visitorId);
-      });
-
-      hourlyVisitors.forEach((h) => {
-        h.count = hourlyMap[`${h.date}-${h.hour}`]?.size || 0;
-      });
     }
 
-    /* ---------- DAILY VISITORS ---------- */
-    const dailyMap: Record<string, Set<string>> = {};
-
-    views.forEach((v) => {
-      if (!v.entryTime || !v.visitorId) return;
-
-      const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
-
-      const date = formatDateInTZ(local, siteTZ);
-
-      dailyMap[date] ??= new Set();
-      dailyMap[date].add(v.visitorId);
-    });
-
-    const dailyVisitors = Object.entries(dailyMap).map(([date, set]) => ({
-      date,
-      count: set.size,
-    }));
-
-    /* ---------- FINAL RESPONSE ---------- */
-    result.push({
-      website: site,
-      analytics: {
-        totalVisitors,
-        totalSessions,
-        totalActiveTime,
-        avgActiveTime,
-        hourlyVisitors,
-        dailyVisitors,
-
-        countries: formatCountries(toCountMap(countryVisitors), countryCodeMap),
-        cities: formatCities(toCountMap(cityVisitors), cityCountryMap),
-        regions: formatRegions(toCountMap(regionVisitors), regionCountryMap),
-
-        devices: formatWithImage(toCountMap(deviceVisitors)),
-        os: formatWithImage(toCountMap(osVisitors)),
-        browsers: formatWithImage(toCountMap(browserVisitors)),
-
-        referrals: formatReferrals(toCountMap(referralVisitors)),
-        refParams: formatSimple(toCountMap(refParamsVisitors)),
-        utmSources: formatSimple(toCountMap(utmSourceVisitors)),
-        urls: formatSimple(toCountMap(urlVisitors)),
-      },
-    });
+    return NextResponse.json(result);
+    
+  } catch (error) {
+    console.error('Website analytics processing error:', error);
+    return NextResponse.json({ 
+      error: "Failed to process website analytics", 
+      message: "An internal server error occurred while processing analytics data",
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+    }, { status: 500 });
   }
 
-  return NextResponse.json(result);
+  } catch (error) {
+    console.error('Website API GET error:', error);
+    return NextResponse.json({ 
+      error: "Internal server error", 
+      message: "Failed to process request",
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+    }, { status: 500 });
+  }
 }
+
