@@ -85,7 +85,7 @@ A modern, professional web analytics platform built with Next.js 16, providing r
 1. **Clone the repository**
    ```bash
    git clone https://github.com/AnshuHemal/MetricFlow.git
-   cd metric-flow
+   cd MetricFlow
    ```
 
 2. **Install dependencies**
