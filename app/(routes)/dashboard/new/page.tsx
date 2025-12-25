@@ -5,21 +5,31 @@ import React, { useEffect, useState, Suspense } from "react";
 import WebsiteForm from "./_components/WebsiteForm";
 import ScriptForm from "./_components/ScriptForm";
 import { LoadingLink } from "@/components/ui/loading-link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParamsSafe } from "@/hooks/use-search-params-safe";
+
+// Loading component for Suspense fallback
+function PageLoading() {
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 // Separate component for search params logic
 function AddWebsiteContent() {
   const [isVisible, setIsVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const searchParams = useSearchParams();
+  const { mounted, get } = useSearchParamsSafe();
   
   // Only access search params after component is mounted
-  const step = mounted ? searchParams.get('step') : null;
-  const websiteId = mounted ? searchParams.get('websiteId') : null;
-  const domain = mounted ? searchParams.get('domain') : null;
+  const step = get('step');
+  const websiteId = get('websiteId');
+  const domain = get('domain');
 
   useEffect(() => {
-    setMounted(true);
     setIsVisible(true);
   }, []);
 
@@ -108,16 +118,11 @@ function AddWebsiteContent() {
   );
 }
 
-const AddWebsite = () => {
+// Main page component with proper Suspense boundary
+export default function AddWebsite() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense fallback={<PageLoading />}>
       <AddWebsiteContent />
     </Suspense>
   );
-};
-
-export default AddWebsite;
+}

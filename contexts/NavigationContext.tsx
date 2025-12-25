@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { createContext, useContext, useEffect, useState, ReactNode, Suspense } from "react";
+import { usePathname } from "next/navigation";
+import { useSearchParamsSafe } from "@/hooks/use-search-params-safe";
 import Loading from "@/components/ui/loading";
 
 interface NavigationContextType {
@@ -23,19 +24,20 @@ interface NavigationProviderProps {
   children: ReactNode;
 }
 
-export const NavigationProvider = ({ children }: NavigationProviderProps) => {
+function NavigationProviderContent({ children }: NavigationProviderProps) {
   const [isNavigating, setIsNavigating] = useState(false);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { mounted, toString } = useSearchParamsSafe();
 
   useEffect(() => {
-    // Hide loading when route changes complete
+    if (!mounted) return;
+    
     const timer = setTimeout(() => {
       setIsNavigating(false);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [pathname, searchParams]);
+  }, [pathname, toString(), mounted]);
 
   const setNavigating = (navigating: boolean) => {
     setIsNavigating(navigating);
@@ -56,5 +58,19 @@ export const NavigationProvider = ({ children }: NavigationProviderProps) => {
         />
       )}
     </NavigationContext.Provider>
+  );
+}
+
+export const NavigationProvider = ({ children }: NavigationProviderProps) => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loading variant="page" text="Initializing..." />
+      </div>
+    }>
+      <NavigationProviderContent>
+        {children}
+      </NavigationProviderContent>
+    </Suspense>
   );
 };
