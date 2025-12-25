@@ -25,6 +25,14 @@ export const metadata: Metadata = {
   title: "MetricFlow - Modern Website Analytics",
   description:
     "Understand your website visitors and grow your business with actionable insights from MetricFlow analytics platform.",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.svg', type: 'image/svg+xml' }
+    ],
+    shortcut: '/favicon.svg',
+    apple: '/icon.svg'
+  }
 };
 
 export default function RootLayout({
@@ -36,6 +44,9 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <head>
+          <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+          <link rel="shortcut icon" href="/favicon.svg" />
+          <link rel="apple-touch-icon" href="/icon.svg" />
           <script
             defer
             data-website-id="a727880e-f529-4e94-b282-8d6dfc1bf5c9"
