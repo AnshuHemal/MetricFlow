@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Provider from "./provider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,6 +45,7 @@ export default function RootLayout({
         </head>
         <body className={`${poppins.className} ${poppins.variable}`}>
           <Provider>{children}</Provider>
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
