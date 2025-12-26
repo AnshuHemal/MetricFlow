@@ -48,12 +48,12 @@ export default function RootLayout({
           <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
           <link rel="shortcut icon" href="/favicon.svg" />
           <link rel="apple-touch-icon" href="/icon.svg" />
-          <script
+          {/* <script
             defer
             data-website-id="a727880e-f529-4e94-b282-8d6dfc1bf5c9"
             data-domain="https://metricflow-web.vercel.app/"
             src="https://metricflow-web.vercel.app/analytics.js"
-          ></script>
+          ></script> */}
         </head>
         <body className={`${poppins.className} ${poppins.variable}`}>
           <Provider>{children}</Provider>

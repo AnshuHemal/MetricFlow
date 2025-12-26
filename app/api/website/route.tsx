@@ -310,20 +310,20 @@ export async function GET(req: NextRequest) {
       try {
         const siteTZ = getSafeTimeZone(site.timezone);
 
-        const views = await db
+        // First, get all views for this website
+        const allViews = await db
           .select()
           .from(pageViewTable)
-          .where(
-            and(
-              eq(pageViewTable.websiteId, site.websiteId),
-              ...(fromUnix && toUnix
-                ? [
-                    gte(sql`${pageViewTable.entryTime}::bigint`, fromUnix),
-                    lte(sql`${pageViewTable.entryTime}::bigint`, toUnix),
-                  ]
-                : [])
-            )
-          );
+          .where(eq(pageViewTable.websiteId, site.websiteId));
+
+        // Filter by date range in JavaScript if needed
+        const views = (fromUnix && toUnix) 
+          ? allViews.filter(v => {
+              if (!v.entryTime) return false;
+              const timeNum = typeof v.entryTime === 'string' ? parseInt(v.entryTime, 10) : Number(v.entryTime);
+              return !isNaN(timeNum) && timeNum >= fromUnix && timeNum <= toUnix;
+            })
+          : allViews;
 
         /* ---------- UNIQUE VISITORS ---------- */
         const makeSetMap = () => ({} as Record<string, Set<string>>);
@@ -350,8 +350,15 @@ export async function GET(req: NextRequest) {
           if (!v.visitorId) return;
           uniqueVisitors.add(v.visitorId);
 
-          if (v.totalActiveTime && v.totalActiveTime > 0) {
-            totalActiveTime += v.totalActiveTime;
+          // Handle totalActiveTime - ensure it's a valid number
+          const activeTime = v.totalActiveTime;
+          if (activeTime && typeof activeTime === 'number' && activeTime > 0) {
+            totalActiveTime += activeTime;
+          } else if (activeTime && typeof activeTime === 'string') {
+            const parsedTime = parseInt(activeTime, 10);
+            if (!isNaN(parsedTime) && parsedTime > 0) {
+              totalActiveTime += parsedTime;
+            }
           }
 
           const add = (map: Record<string, Set<string>>, key: string) => {
@@ -396,49 +403,70 @@ export async function GET(req: NextRequest) {
         const hourlyVisitors: any[] = [];
 
         if (views.length > 0) {
-          const start = fromUnix
-            ? new Date(fromUnix * 1000)
-            : new Date(Math.min(...views.map((v) => Number(v.entryTime) * 1000)));
+          // Find the actual date range from the data
+          const validEntryTimes = views
+            .map(v => {
+              if (!v.entryTime) return null;
+              const timeNum = typeof v.entryTime === 'string' ? parseInt(v.entryTime, 10) : Number(v.entryTime);
+              return isNaN(timeNum) ? null : timeNum * 1000;
+            })
+            .filter(t => t !== null) as number[];
 
-          const end = toUnix
-            ? new Date(toUnix * 1000)
-            : new Date(Math.max(...views.map((v) => Number(v.entryTime) * 1000)));
+          if (validEntryTimes.length > 0) {
+            const start = fromUnix
+              ? new Date(fromUnix * 1000)
+              : new Date(Math.min(...validEntryTimes));
 
-          let cursor = new Date(start);
+            const end = toUnix
+              ? new Date(toUnix * 1000)
+              : new Date(Math.max(...validEntryTimes));
 
-          while (cursor <= end) {
-            const local = toZonedTime(cursor, siteTZ);
-            const date = formatDateInTZ(local, siteTZ);
-            const hour = local.getHours();
-            const key = `${date}-${hour}`;
+            let cursor = new Date(start);
 
-            hourlyVisitors.push({
-              date,
-              hour,
-              hourLabel: local.toLocaleString("en-US", {
-                hour: "numeric",
-                hour12: true,
-                timeZone: siteTZ,
-              }),
-              count: 0,
+            while (cursor <= end) {
+              const local = toZonedTime(cursor, siteTZ);
+              const date = formatDateInTZ(local, siteTZ);
+              const hour = local.getHours();
+              const key = `${date}-${hour}`;
+
+              hourlyVisitors.push({
+                date,
+                hour,
+                hourLabel: local.toLocaleString("en-US", {
+                  hour: "numeric",
+                  hour12: true,
+                  timeZone: siteTZ,
+                }),
+                count: 0,
+              });
+
+              hourlyMap[key] = new Set();
+              cursor.setHours(cursor.getHours() + 1);
+            }
+
+            views.forEach((v) => {
+              if (!v.entryTime || !v.visitorId) return;
+
+              // Handle entryTime as varchar - convert to number
+              let entryTimeNum: number;
+              if (typeof v.entryTime === 'string') {
+                entryTimeNum = parseInt(v.entryTime, 10);
+              } else {
+                entryTimeNum = Number(v.entryTime);
+              }
+
+              if (isNaN(entryTimeNum)) return;
+
+              const local = toZonedTime(new Date(entryTimeNum * 1000), siteTZ);
+
+              const date = formatDateInTZ(local, siteTZ);
+              hourlyMap[`${date}-${local.getHours()}`]?.add(v.visitorId);
             });
 
-            hourlyMap[key] = new Set();
-            cursor.setHours(cursor.getHours() + 1);
+            hourlyVisitors.forEach((h) => {
+              h.count = hourlyMap[`${h.date}-${h.hour}`]?.size || 0;
+            });
           }
-
-          views.forEach((v) => {
-            if (!v.entryTime || !v.visitorId) return;
-
-            const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
-
-            const date = formatDateInTZ(local, siteTZ);
-            hourlyMap[`${date}-${local.getHours()}`]?.add(v.visitorId);
-          });
-
-          hourlyVisitors.forEach((h) => {
-            h.count = hourlyMap[`${h.date}-${h.hour}`]?.size || 0;
-          });
         }
 
         /* ---------- DAILY VISITORS ---------- */
@@ -447,7 +475,17 @@ export async function GET(req: NextRequest) {
         views.forEach((v) => {
           if (!v.entryTime || !v.visitorId) return;
 
-          const local = toZonedTime(new Date(Number(v.entryTime) * 1000), siteTZ);
+          // Handle entryTime as varchar - convert to number
+          let entryTimeNum: number;
+          if (typeof v.entryTime === 'string') {
+            entryTimeNum = parseInt(v.entryTime, 10);
+          } else {
+            entryTimeNum = Number(v.entryTime);
+          }
+
+          if (isNaN(entryTimeNum)) return;
+
+          const local = toZonedTime(new Date(entryTimeNum * 1000), siteTZ);
 
           const date = formatDateInTZ(local, siteTZ);
 

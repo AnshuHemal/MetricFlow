@@ -117,11 +117,9 @@ const WebsiteDetail = () => {
       </div>
 
       {/* Debug Section (Development Only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className={`transition-all duration-700 delay-250 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-          <DebugAnalytics WebsiteInfo={websiteInfo} />
-        </div>
-      )}
+      <div className={`transition-all duration-700 delay-250 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <DebugAnalytics WebsiteInfo={websiteInfo} />
+      </div>
 
       {/* Analytics Section */}
       <div className={`transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
