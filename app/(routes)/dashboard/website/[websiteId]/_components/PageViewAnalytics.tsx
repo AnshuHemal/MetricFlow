@@ -31,6 +31,25 @@ const chartConfig = {
 const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }: Props) => {
   const webAnalytics = WebsiteInfo?.analytics;
 
+  // Helper function to safely format time values
+  const formatTime = (timeInSeconds: number | undefined) => {
+    if (!timeInSeconds || timeInSeconds === 0) return "0m";
+    
+    const minutes = Math.round(timeInSeconds / 60);
+    if (minutes < 60) {
+      return `${minutes}m`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    }
+  };
+
+  // Helper function to safely get numeric values
+  const safeNumber = (value: number | undefined) => {
+    return value && !isNaN(value) ? value : 0;
+  };
+
   return (
     <div className="space-y-6">
       {!loading ? (
@@ -43,7 +62,7 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
                   <div>
                     <LabelCountItem
                       label="Visitors"
-                      value={webAnalytics?.totalVisitors}
+                      value={safeNumber(webAnalytics?.totalVisitors)}
                     />
                   </div>
                   <div className="bg-blue-500 rounded-lg p-2">
@@ -59,7 +78,7 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
                   <div>
                     <LabelCountItem
                       label="Page Views"
-                      value={webAnalytics?.totalSessions}
+                      value={safeNumber(webAnalytics?.totalSessions)}
                     />
                   </div>
                   <div className="bg-green-700 rounded-lg p-2">
@@ -75,9 +94,7 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
                   <div>
                     <LabelCountItem
                       label="Total Time"
-                      value={
-                        (Number(webAnalytics?.totalActiveTime) / 60).toFixed(1) + "m"
-                      }
+                      value={formatTime(webAnalytics?.totalActiveTime)}
                     />
                   </div>
                   <div className="bg-purple-500 rounded-lg p-2">
@@ -93,9 +110,7 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
                   <div>
                     <LabelCountItem
                       label="Avg. Time"
-                      value={
-                        (Number(webAnalytics?.avgActiveTime) / 60).toFixed(1) + "m"
-                      }
+                      value={formatTime(webAnalytics?.avgActiveTime)}
                     />
                   </div>
                   <div className="bg-orange-500 rounded-lg p-2">
@@ -109,13 +124,13 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <LabelCountItem label="Live Users" value={liveUserCount ?? 0} />
+                    <LabelCountItem label="Live Users" value={safeNumber(liveUserCount)} />
                   </div>
                   <div className="bg-red-500 rounded-lg p-2">
                     <div className="relative">
                       <Activity className="h-5 w-5 text-white" />
                       {liveUserCount > 0 && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-600 rounded-full"></div>
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
                       )}
                     </div>
                   </div>
@@ -151,57 +166,75 @@ const PageViewAnalytics = ({ WebsiteInfo, loading, analyticType, liveUserCount }
 
             <CardContent className="pt-0">
               <div className="bg-gray-50 rounded-lg p-4">
-                <ChartContainer config={chartConfig} className="h-80 w-full">
-                  <AreaChart
-                    data={
-                      analyticType === "hourly"
-                        ? webAnalytics?.hourlyVisitors
-                        : webAnalytics?.dailyVisitors
-                    }
-                    margin={{
-                      left: 12,
-                      right: 12,
-                      top: 12,
-                      bottom: 12,
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid 
-                      vertical={false} 
-                      strokeDasharray="3 3" 
-                      stroke="#e5e7eb" 
-                    />
-                    <XAxis
-                      dataKey={analyticType === "hourly" ? "hourLabel" : "date"}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 12, fill: '#6b7280' }}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      width={40}
-                      tick={{ fontSize: 12, fill: '#6b7280' }}
-                    />
-                    <ChartTooltip
-                      cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '3 3' }}
-                      content={<ChartTooltipContent indicator="line" />}
-                    />
-                    <Area
-                      dataKey="count"
-                      type="monotone"
-                      fill="url(#colorGradient)"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ChartContainer>
+                {webAnalytics && (
+                  analyticType === "hourly" 
+                    ? webAnalytics.hourlyVisitors?.length > 0
+                    : webAnalytics.dailyVisitors?.length > 0
+                ) ? (
+                  <ChartContainer config={chartConfig} className="h-80 w-full">
+                    <AreaChart
+                      data={
+                        analyticType === "hourly"
+                          ? webAnalytics?.hourlyVisitors || []
+                          : webAnalytics?.dailyVisitors || []
+                      }
+                      margin={{
+                        left: 12,
+                        right: 12,
+                        top: 12,
+                        bottom: 12,
+                      }}
+                    >
+                      <defs>
+                        <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid 
+                        vertical={false} 
+                        strokeDasharray="3 3" 
+                        stroke="#e5e7eb" 
+                      />
+                      <XAxis
+                        dataKey={analyticType === "hourly" ? "hourLabel" : "date"}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                      />
+                      <ChartTooltip
+                        cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '3 3' }}
+                        content={<ChartTooltipContent indicator="line" />}
+                      />
+                      <Area
+                        dataKey="count"
+                        type="monotone"
+                        fill="url(#colorGradient)"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-80 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="bg-gray-200 rounded-full p-4 w-16 h-16 mx-auto mb-4">
+                        <TrendingUp className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <p className="text-gray-500 text-lg font-medium">No data available</p>
+                      <p className="text-gray-400 text-sm mt-1">
+                        Analytics data will appear here once visitors start using your website
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

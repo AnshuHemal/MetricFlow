@@ -8,6 +8,7 @@ import PageViewAnalytics from "./_components/PageViewAnalytics";
 import { format } from "date-fns-tz";
 import SourceWidget from "./_components/SourceWidget";
 import { Globe, TrendingUp, Activity, Users } from "lucide-react";
+import DebugAnalytics from "./_components/DebugAnalytics";
 
 const WebsiteDetail = () => {
   const { websiteId } = useParams();
@@ -38,16 +39,35 @@ const WebsiteDetail = () => {
     }
 
     setLoading(true);
-    const fromDate = format(formData.fromDate, "yyyy-MM-dd");
-    const toDate = formData?.toDate
-      ? format(formData.toDate, "yyyy-MM-dd")
-      : fromDate;
-    const websiteResult = await axios.get(
-      `/api/website?websiteId=${websiteId}&from=${fromDate}&to=${toDate}`
-    );
-    setWebsiteInfo(websiteResult.data[0]);
-    setLoading(false);
-    getLiveUsers();
+    try {
+      const fromDate = format(formData.fromDate, "yyyy-MM-dd");
+      const toDate = formData?.toDate
+        ? format(formData.toDate, "yyyy-MM-dd")
+        : fromDate;
+      
+      const websiteResult = await axios.get(
+        `/api/website?websiteId=${websiteId}&from=${fromDate}&to=${toDate}`
+      );
+      
+      // Enhanced data validation and logging
+      const data = websiteResult.data;
+      if (Array.isArray(data) && data.length > 0) {
+        setWebsiteInfo(data[0]);
+      } else if (data && !Array.isArray(data)) {
+        // Handle case where API returns single object instead of array
+        setWebsiteInfo(data);
+      } else {
+        // No data found
+        setWebsiteInfo(null);
+      }
+      
+      getLiveUsers();
+    } catch (error) {
+      console.error('Error fetching website analytics:', error);
+      setWebsiteInfo(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getLiveUsers = async () => {
@@ -95,6 +115,13 @@ const WebsiteDetail = () => {
           setReloadData={() => getWebsiteAnalyticalDetail()}
         />
       </div>
+
+      {/* Debug Section (Development Only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className={`transition-all duration-700 delay-250 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+          <DebugAnalytics WebsiteInfo={websiteInfo} />
+        </div>
+      )}
 
       {/* Analytics Section */}
       <div className={`transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>

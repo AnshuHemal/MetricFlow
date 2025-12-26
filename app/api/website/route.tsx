@@ -464,12 +464,12 @@ export async function GET(req: NextRequest) {
         result.push({
           website: site,
           analytics: {
-            totalVisitors,
-            totalSessions,
-            totalActiveTime,
-            avgActiveTime,
-            hourlyVisitors,
-            dailyVisitors,
+            totalVisitors: totalVisitors || 0,
+            totalSessions: totalSessions || 0,
+            totalActiveTime: totalActiveTime || 0,
+            avgActiveTime: avgActiveTime || 0,
+            hourlyVisitors: hourlyVisitors || [],
+            dailyVisitors: dailyVisitors || [],
 
             countries: formatCountries(toCountMap(countryVisitors), countryCodeMap),
             cities: formatCities(toCountMap(cityVisitors), cityCountryMap),
@@ -490,7 +490,24 @@ export async function GET(req: NextRequest) {
         // Continue processing other websites, but add error info for this site
         result.push({
           website: site,
-          analytics: null,
+          analytics: {
+            totalVisitors: 0,
+            totalSessions: 0,
+            totalActiveTime: 0,
+            avgActiveTime: 0,
+            hourlyVisitors: [],
+            dailyVisitors: [],
+            countries: [],
+            cities: [],
+            regions: [],
+            devices: [],
+            os: [],
+            browsers: [],
+            referrals: [],
+            refParams: [],
+            utmSources: [],
+            urls: [],
+          },
           error: "Failed to process analytics for this website"
         });
       }
