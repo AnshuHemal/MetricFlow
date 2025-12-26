@@ -27,7 +27,7 @@ const ScriptForm = ({ websiteId, domain }: Props) => {
     setIsVisible(true);
   }, []);
 
-  const Script = `<script defer data-website-id='${websiteId}' data-domain='${domain}' src="${process.env.NEXT_PUBLIC_HOST_URL}/analytics.js"></script>`;
+  const Script = `<script defer data-website-id='${websiteId}' data-domain='${domain}' src="${process.env.NEXT_PUBLIC_HOST_URL}analytics.js"></script>`;
 
   const onCopy = () => {
     navigator.clipboard.writeText(Script);
