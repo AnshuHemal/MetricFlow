@@ -50,8 +50,8 @@ export default function RootLayout({
           <script
             defer
             data-website-id="a727880e-f529-4e94-b282-8d6dfc1bf5c9"
-            data-domain="https://localhost:3000"
-            src="http://localhost:3000/analytics.js"
+            data-domain="https://metricflow-web.vercel.app/"
+            src="https://metricflow-web.vercel.app/analytics.js"
           ></script>
         </head>
         <body className={`${poppins.className} ${poppins.variable}`}>

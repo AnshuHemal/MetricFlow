@@ -104,7 +104,7 @@ A modern, professional web analytics platform built with Next.js 16, providing r
    NEON_DB_CONNECTION_STRING=your_neon_database_url
    
    # Application URL
-   NEXT_PUBLIC_HOST_URL=http://localhost:3000
+   NEXT_PUBLIC_HOST_URL=https://metricflow-web.vercel.app/
    
    # Clerk Authentication
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
@@ -147,7 +147,7 @@ A modern, professional web analytics platform built with Next.js 16, providing r
    <script defer 
      data-website-id='your-website-id' 
      data-domain='your-domain.com' 
-     src="http://localhost:3000/analytics.js">
+     src="https://metricflow-web.vercel.app/analytics.js">
    </script>
    ```
 

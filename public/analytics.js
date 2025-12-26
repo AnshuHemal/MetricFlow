@@ -53,7 +53,7 @@
     refParams,
   };
 
-  fetch("http://localhost:3000/api/track", {
+  fetch("https://metricflow-web.vercel.app/api/track", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -69,7 +69,7 @@
     const exitTime = Math.floor(Date.now() / 1000);
     totalActiveTime += Math.floor(Date.now() / 1000) - activeStartTime;
 
-    fetch("http://localhost:3000/api/track", {
+    fetch("https://metricflow-web.vercel.app/api/track", {
       method: "POST",
       keepalive: true,
       headers: {
@@ -93,7 +93,7 @@
   // window.addEventListener("pagehide", handleExit);
 
   const sendLivePing = () => {
-    fetch('http://localhost:3000/api/live', {
+    fetch('https://metricflow-web.vercel.app/api/live', {
       method: "POST",
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
