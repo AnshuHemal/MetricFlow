@@ -13,10 +13,9 @@ type Props = {
 const DebugAnalytics = ({ WebsiteInfo }: Props) => {
   const [showDebug, setShowDebug] = useState(false);
 
-  // Temporarily enable in production for debugging
-  // if (process.env.NODE_ENV === 'production') {
-  //   return null; // Don't show in production
-  // }
+  if (process.env.NODE_ENV === 'production') {
+    return null; // Don't show in production
+  }
 
   return (
     <Card className="border-orange-200 bg-orange-50">

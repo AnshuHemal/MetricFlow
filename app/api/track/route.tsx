@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       .insert(pageViewTable)
       .values({
         visitorId: body.visitorId,
-        websiteId: body.visitorId,
+        websiteId: body.websiteId, // Fixed: was incorrectly using body.visitorId
         domain: body.domain,
         url: body.url,
         type: body.type,
